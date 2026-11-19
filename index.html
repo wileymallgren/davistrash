@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Davis Trash</title>
+  <meta name="description" content="Find the nearest compost, recycling or battery bin on the UC Davis campus, and look up which bin an item goes in.">
+  <meta name="theme-color" content="#f7f4ee" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#161513" media="(prefers-color-scheme: dark)">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%233f7a39'/%3E%3Cpath d='M7 9h10l-1 9H8z M6 7h12' stroke='%23fdfbf7' stroke-width='1.8' fill='none' stroke-linejoin='round' stroke-linecap='round'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/styles.css?v=5">
+</head>
+<body>
+  <header class="top">
+    <div class="wrap">
+      <a class="brand" href="./" data-home>
+        <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8h12l-1.2 12H7.2z M4 5h16 M10 5V3.5h4V5" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linejoin="round" stroke-linecap="round"/></svg>
+        Davis Trash
+      </a>
+      <nav class="nav" aria-label="Main">
+        <a href="#find" data-nav="find">Find a bin</a>
+        <a href="#search" data-nav="search">Look up an item</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="app">
+    <!-- Overview, shown when someone opens the site directly -->
+    <section id="view-home" hidden>
+      <div class="wrap hero">
+        <div>
+          <h1 class="h-hero">Find the right bin on the Davis campus</h1>
+          <p class="lede">Most trash cans on campus only take landfill. Scan the code on one, say what you're holding, and get walking directions to the nearest compost, recycling or battery bin.</p>
+          <div class="actions">
+            <a class="btn btn-primary" href="#find">Find a bin near me</a>
+            <a class="btn btn-secondary" href="#search">Look up an item</a>
+          </div>
+        </div>
+        <figure class="hero-map" style="margin:0">
+          <svg class="map" id="home-map" role="img" aria-label="Map of mapped compost, recycling and multi-bin stations on the UC Davis campus"></svg>
+          <figcaption class="legend" id="home-legend"></figcaption>
+        </figure>
+      </div>
+
+      <section class="section">
+        <div class="wrap">
+          <div class="section-head">
+            <div>
+              <h2 class="h-sec">How it works</h2>
+              <p>Codes go on trash cans that have no compost or recycling bin next to them.</p>
+            </div>
+          </div>
+          <ol class="steps">
+            <li><span class="n">01</span><div><h3>Scan the code on the can</h3><p>The code knows where that can is, so there's no location prompt.</p></div></li>
+            <li><span class="n">02</span><div><h3>Pick the bin you need</h3><p>Compost, recycling, or a multi-bin for batteries and small electronics. Not sure? Search for the item.</p></div></li>
+            <li><span class="n">03</span><div><h3>Walk there</h3><p>Open walking directions in Google Maps to the closest station from the campus sustainability map.</p></div></li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="wrap">
+          <div class="section-head">
+            <div>
+              <h2 class="h-sec">What goes where</h2>
+              <p>From the UC Davis Recycle A–Z guide, for the Davis campus.</p>
+            </div>
+            <a class="btn btn-secondary" href="#search">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+              Search all items
+            </a>
+          </div>
+          <div class="bins" id="home-bins"></div>
+        </div>
+      </section>
+    </section>
+
+    <!-- Pick a bin type -->
+    <section id="view-find" class="view" hidden>
+      <div class="wrap app-grid">
+        <div>
+          <div class="here" id="find-here" hidden><span class="lid k-landfill"></span>You're at a trash-only can</div>
+          <h1 class="h-page">Which bin do you need?</h1>
+          <div class="choices" id="choices"></div>
+          <div class="or">or</div>
+          <form class="search" id="find-search" role="search">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            <input type="search" name="q" placeholder="Look up an item, like chip bag" aria-label="Look up an item" autocomplete="off">
+          </form>
+        </div>
+        <div class="map-card">
+          <svg class="map" id="find-map" role="img" aria-label="Map of bin stations"></svg>
+          <div class="meta" id="find-map-meta"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Nearest station of one type -->
+    <section id="view-result" class="view" hidden>
+      <div class="wrap app-grid">
+        <div class="result" id="result-body"></div>
+        <div class="map-card" id="result-map-card" hidden>
+          <svg class="map" id="result-map" role="img"></svg>
+          <div class="meta">Straight-line view. Google Maps has the walking route.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Search -->
+    <section id="view-search" class="view" hidden>
+      <div class="wrap" style="max-width:720px">
+        <a class="back" href="#find" id="search-back">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>Bins
+        </a>
+        <h1 class="h-page">What are you throwing away?</h1>
+        <form class="search" id="search-form" role="search" style="margin-top:24px">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          <input type="search" id="q" placeholder="Search" aria-label="Item" autocomplete="off" aria-controls="results">
+          <button type="button" class="clear" id="q-clear" aria-label="Clear" hidden>
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+          </button>
+        </form>
+        <div class="empty" id="search-empty"></div>
+        <ul class="results" id="results" aria-live="polite"></ul>
+      </div>
+    </section>
+
+    <!-- One item -->
+    <section id="view-item" class="view" hidden>
+      <div class="wrap">
+        <a class="back" href="#search" id="item-back">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>Search
+        </a>
+        <div id="item-body"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <div class="wrap">
+      <p>Bin locations come from the <a href="https://sustainability.ucdavis.edu/sustainability-map" target="_blank" rel="noopener">UC Davis Sustainability Map</a>. Item guidance comes from the <a href="https://sustainability.ucdavis.edu/how/recycle-a-z" target="_blank" rel="noopener">Recycle A–Z guide</a>, copied <span class="mono" id="updated"></span>.</p>
+      <p>An independent project, not an official UC Davis service. Questions about campus recycling go to <a href="mailto:recycling@ucdavis.edu">recycling@ucdavis.edu</a>. <a href="qr.html">Make a code for a trash can</a></p>
+    </div>
+  </footer>
+
+  <script src="assets/data.js?v=5"></script>
+  <script src="assets/app.js?v=5"></script>
+</body>
+</html>

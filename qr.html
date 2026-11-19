@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bin Code Maker</title>
+  <meta name="robots" content="noindex">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/styles.css?v=5">
+  <style>
+    .qr-grid { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 48px; align-items: start; }
+    @media (max-width: 860px) { .qr-grid { grid-template-columns: 1fr; gap: 32px; } }
+    .steps-v { list-style: none; margin: 32px 0 0; padding: 0; display: grid; gap: 32px; }
+    .steps-v > li { display: grid; grid-template-columns: 28px 1fr; gap: 12px; }
+    .steps-v .n { font: 500 13px/24px var(--mono); color: var(--muted); }
+    .steps-v h2 { font-size: 17px; line-height: 24px; }
+    .steps-v p { margin: 4px 0 0; color: var(--text-2); font-size: 14px; line-height: 20px; }
+    .input {
+      height: 46px; border-radius: 10px; border: 1px solid var(--line-strong); background: var(--card);
+      padding: 0 12px; font-size: 16px; width: 100%; font-family: var(--mono);
+    }
+    .row { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+    .row .input { flex: 1; min-width: 200px; }
+    .coords { margin-top: 12px; font: 400 13px/20px var(--mono); color: var(--text-2); }
+    .err { color: #b42318; }
+    .label-card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px; box-shadow: var(--shadow); position: sticky; top: 24px; }
+    #preview { width: 100%; height: auto; display: block; border-radius: 8px; background: #fff; }
+    .link { word-break: break-all; font: 400 12px/18px var(--mono); color: var(--text-2); margin: 12px 0 0; }
+    .link a { color: inherit; }
+    .label-card .btn { margin-top: 16px; }
+    .placeholder { aspect-ratio: 3 / 4; border-radius: 8px; border: 1px dashed var(--line-strong); display: grid; place-items: center; color: var(--muted); font-size: 14px; text-align: center; padding: 24px; }
+  </style>
+</head>
+<body>
+  <header class="top">
+    <div class="wrap">
+      <a class="brand" href="./">
+        <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8h12l-1.2 12H7.2z M4 5h16 M10 5V3.5h4V5" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linejoin="round" stroke-linecap="round"/></svg>
+        Davis Trash
+      </a>
+    </div>
+  </header>
+
+  <main class="view">
+    <div class="wrap qr-grid">
+      <div>
+        <h1 class="h-page">Make a code for a trash can</h1>
+        <p class="lede" style="font-size:17px;line-height:26px">Each code holds the can's coordinates, so scanning it shows the bins nearest to that can without asking for location.</p>
+
+        <ol class="steps-v">
+          <li><span class="n">01</span><div>
+            <h2>Stand next to the can</h2>
+            <p>Use your phone's location, or paste coordinates from Google Maps (press and hold on the spot, then copy the numbers).</p>
+            <div class="row">
+              <button class="btn btn-primary" id="gps" type="button">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><line x1="2" x2="5" y1="12" y2="12"/><line x1="19" x2="22" y1="12" y2="12"/><line x1="12" x2="12" y1="2" y2="5"/><line x1="12" x2="12" y1="19" y2="22"/><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="3"/></svg>
+                Use my location
+              </button>
+            </div>
+            <div class="row">
+              <input class="input" id="manual" placeholder="38.53901, -121.75123" aria-label="Coordinates" inputmode="decimal">
+            </div>
+            <div class="coords" id="coords" aria-live="polite"></div>
+          </div></li>
+          <li><span class="n">02</span><div>
+            <h2>Check the site address</h2>
+            <p>Where this site is hosted. It fills in from the page you're on.</p>
+            <div class="row"><input class="input" id="base" aria-label="Site address"></div>
+          </div></li>
+          <li><span class="n">03</span><div>
+            <h2>Print the label</h2>
+            <p>Download the PNG and print it at least 2 in (5 cm) wide so phones read it from arm's length.</p>
+          </div></li>
+        </ol>
+      </div>
+
+      <aside class="label-card">
+        <div class="placeholder" id="empty">Set a location to see the label</div>
+        <canvas id="preview" width="900" height="1200" hidden></canvas>
+        <p class="link" id="link" hidden></p>
+        <a class="btn btn-primary btn-block" id="download" download="bin-code.png" hidden>Download PNG</a>
+      </aside>
+    </div>
+  </main>
+
+  <div id="qr-tmp" hidden></div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script>
+  (function () {
+    const $ = (s) => document.querySelector(s);
+    const base = $("#base");
+    base.value = location.href.replace(/qr\.html.*$/, "").replace(/[?#].*$/, "");
+    let point = null;
+
+    function setPoint(lat, lng, acc) {
+      if (!isFinite(lat) || !isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
+        $("#coords").innerHTML = '<span class="err">Those don\'t look like coordinates</span>';
+        return;
+      }
+      point = { lat: +lat.toFixed(6), lng: +lng.toFixed(6) };
+      const far = Math.hypot(lat - 38.5395, (lng + 121.7555) * 0.78) > 0.05;
+      $("#coords").innerHTML = `${point.lat}, ${point.lng}${acc ? ` · within ${Math.round(acc)} m` : ""}` +
+        (far ? '<br><span class="err">This is off campus. Is that right?</span>' : "") +
+        (acc > 40 ? '<br><span class="err">Low accuracy. Wait a moment outdoors and try again.</span>' : "");
+      render();
+    }
+
+    $("#gps").addEventListener("click", () => {
+      $("#coords").textContent = "Finding location";
+      navigator.geolocation.getCurrentPosition(
+        (p) => setPoint(p.coords.latitude, p.coords.longitude, p.coords.accuracy),
+        (e) => { $("#coords").innerHTML = `<span class="err">${e.code === 1 ? "Location is blocked for this page" : "Couldn't get a location"}</span>`; },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+      );
+    });
+    $("#manual").addEventListener("input", (e) => {
+      const m = e.target.value.match(/(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)/);
+      if (m) setPoint(parseFloat(m[1]), parseFloat(m[2]));
+    });
+    base.addEventListener("input", render);
+
+    function render() {
+      if (!point) return;
+      let b = base.value.trim();
+      if (b && !/\/$/.test(b) && !/\.html$/.test(b)) b += "/";
+      const url = `${b}?at=${point.lat},${point.lng}`;
+
+      const tmp = $("#qr-tmp");
+      tmp.innerHTML = "";
+      new QRCode(tmp, { text: url, width: 640, height: 640, colorDark: "#1f1b16", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.M });
+      const qr = tmp.querySelector("canvas");
+
+      const c = $("#preview"), x = c.getContext("2d");
+      const W = c.width, H = c.height;
+      x.fillStyle = "#ffffff"; x.fillRect(0, 0, W, H);
+      x.fillStyle = "#3f7a39"; x.fillRect(0, 0, W, 24);
+      x.fillStyle = "#1f1b16";
+      x.font = "500 58px 'Instrument Sans', sans-serif";
+      x.fillText("No compost or", 72, 128);
+      x.fillText("recycling here?", 72, 196);
+      x.fillStyle = "#5e554a";
+      x.font = "400 34px 'Instrument Sans', sans-serif";
+      x.fillText("Scan for the nearest bin and what goes in it", 72, 254);
+      x.imageSmoothingEnabled = false;
+      x.drawImage(qr, (W - 640) / 2, 320, 640, 640);
+      x.fillStyle = "#776e62";
+      x.font = "400 26px 'IBM Plex Mono', monospace";
+      const host = b.replace(/^https?:\/\//, "").replace(/\/$/, "");
+      x.fillText(host.length > 52 ? host.slice(0, 50) + "…" : host, 72, 1060);
+      x.fillText(`${point.lat}, ${point.lng}`, 72, 1104);
+
+      $("#empty").hidden = true;
+      c.hidden = false;
+      $("#link").hidden = false;
+      $("#link").innerHTML = `<a href="${url}" target="_blank" rel="noopener">${url.replace(/&/g, "&amp;").replace(/</g, "&lt;")}</a>`;
+      const dl = $("#download");
+      dl.hidden = false;
+      dl.href = c.toDataURL("image/png");
+      dl.download = `bin-code-${point.lat}_${point.lng}.png`;
+    }
+
+    if (document.fonts) document.fonts.ready.then(render);
+  })();
+  </script>
+</body>
+</html>
